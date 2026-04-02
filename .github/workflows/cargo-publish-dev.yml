@@ -1,0 +1,123 @@
+name: Dev Publish
+
+on:
+  workflow_call:
+    inputs:
+      packages:
+        description: >
+          Newline-separated list of packages to publish in dependency order.
+          Leave empty for single-crate repos.
+        type: string
+        default: ""
+      ci-workflow-name:
+        description: "Name of the CI workflow that must pass before publishing"
+        type: string
+        default: "CI"
+      toolchain:
+        description: "Rust toolchain to use"
+        type: string
+        default: "stable"
+    secrets:
+      CARGO_REGISTRY_TOKEN:
+        description: "crates.io API token"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  dev-publish:
+    name: Publish dev version to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.toolchain }}
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-dev-publish-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-dev-publish-
+
+      - name: Compute dev version
+        id: version
+        shell: bash
+        run: |
+          # Extract base version from workspace or crate root
+          BASE_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          SHORT_SHA=$(echo "${SHA}" | cut -c1-7)
+          DEV_VERSION="${BASE_VERSION}-dev.${SHORT_SHA}"
+          echo "base=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "dev=${DEV_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Dev version: ${DEV_VERSION}"
+
+      - name: Rewrite versions for dev release
+        shell: bash
+        run: |
+          DEV_VERSION="${{ steps.version.outputs.dev }}"
+          BASE_VERSION="${{ steps.version.outputs.base }}"
+
+          # Update the root Cargo.toml workspace/package version
+          sed -i "s/^version *= *\"${BASE_VERSION}\"/version = \"${DEV_VERSION}\"/" Cargo.toml
+
+          # Update any x-release-please-version annotated lines
+          sed -i "s/version *= *\"${BASE_VERSION}\" *# *x-release-please-version/version = \"${DEV_VERSION}\" # x-release-please-version/" Cargo.toml
+
+          # Update exact version pins in workspace dependency declarations
+          # e.g. version = "=0.1.0" → version = "=0.1.0-dev.abc1234"
+          sed -i "s/version = \"=${BASE_VERSION}\"/version = \"=${DEV_VERSION}\"/g" Cargo.toml
+
+          # For workspaces: update individual crate Cargo.tomls that have
+          # explicit (non-workspace-inherited) version fields
+          if [ -n "${{ inputs.packages }}" ]; then
+            for toml in $(find crates -name Cargo.toml -maxdepth 2 2>/dev/null); do
+              sed -i "s/^version *= *\"${BASE_VERSION}\"/version = \"${DEV_VERSION}\"/" "$toml"
+            done
+          fi
+
+          echo "--- Root Cargo.toml version lines ---"
+          grep 'version' Cargo.toml | head -5
+
+      - name: Publish packages
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          PACKAGES="${{ inputs.packages }}"
+
+          if [ -z "$PACKAGES" ]; then
+            echo "::group::Publishing crate"
+            cargo publish --allow-dirty
+            echo "::endgroup::"
+          else
+            COUNT=0
+            while IFS= read -r pkg; do
+              pkg=$(echo "$pkg" | xargs)
+              [ -z "$pkg" ] && continue
+
+              if [ "$COUNT" -gt 0 ]; then
+                echo "Waiting 30s for crates.io to index previous crate..."
+                sleep 30
+              fi
+              COUNT=$((COUNT + 1))
+
+              echo "::group::Publishing $pkg"
+              cargo publish --allow-dirty -p "$pkg"
+              echo "::endgroup::"
+            done <<< "$PACKAGES"
+          fi
