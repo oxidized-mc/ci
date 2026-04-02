@@ -26,8 +26,8 @@ env:
 
 jobs:
   build:
-    name: Build (${{ matrix.include.platform }})
-    runs-on: ${{ matrix.include.runner }}
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -55,18 +55,18 @@ jobs:
           IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
           IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
           echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
-          PLATFORM_TAG=$(echo "${{ matrix.include.platform }}" | tr '/' '-')
+          PLATFORM_TAG=$(echo "${{ matrix.platform }}" | tr '/' '-')
           echo "platform_tag=${PLATFORM_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push by digest
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: ${{ matrix.include.platform }}
+          platforms: ${{ matrix.platform }}
           push: true
           tags: ${{ steps.meta.outputs.image }}:build-${{ steps.meta.outputs.platform_tag }}
-          cache-from: type=gha,scope=${{ matrix.include.platform }}
-          cache-to: type=gha,scope=${{ matrix.include.platform }},mode=max
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,scope=${{ matrix.platform }},mode=max
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.event.workflow_run.head_sha || github.sha }}
