@@ -1,0 +1,149 @@
+name: Rust CI
+
+on:
+  workflow_call:
+    inputs:
+      msrv:
+        description: "Minimum supported Rust version"
+        type: string
+        default: "1.85"
+      toolchain:
+        description: "Rust toolchain for tests"
+        type: string
+        default: "stable"
+      workspace:
+        description: "Use --workspace flag for cargo commands"
+        type: boolean
+        default: false
+      cache-hash-file:
+        description: "File to hash for cache key (Cargo.lock or Cargo.toml)"
+        type: string
+        default: "**/Cargo.toml"
+      extra-clippy-args:
+        description: "Additional arguments for clippy"
+        type: string
+        default: ""
+      check-no-default-features:
+        description: "Run cargo check --no-default-features"
+        type: boolean
+        default: true
+      test-platforms:
+        description: "JSON array of OS runners for test matrix"
+        type: string
+        default: '["ubuntu-latest", "windows-latest", "macos-latest"]'
+      cargo-deny:
+        description: "Run cargo-deny check"
+        type: boolean
+        default: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust (MSRV)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.msrv }}
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-lint-${{ hashFiles(inputs.cache-hash-file) }}
+          restore-keys: ${{ runner.os }}-lint-
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: >
+          cargo clippy
+          ${{ inputs.workspace && '--workspace' || '' }}
+          --all-targets
+          -- -D warnings
+          ${{ inputs.extra-clippy-args }}
+
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: ${{ fromJSON(inputs.test-platforms) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.toolchain }}
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles(inputs.cache-hash-file) }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Test
+        run: cargo test ${{ inputs.workspace && '--workspace' || '' }}
+
+      - name: Check no-default-features
+        if: inputs.check-no-default-features
+        run: >
+          cargo check
+          ${{ inputs.workspace && '--workspace' || '' }}
+          --no-default-features
+
+  deny:
+    name: cargo-deny
+    if: inputs.cargo-deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+
+  msrv:
+    name: MSRV check (Rust ${{ inputs.msrv }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ inputs.msrv }}
+
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-msrv-${{ hashFiles(inputs.cache-hash-file) }}
+          restore-keys: ${{ runner.os }}-msrv-
+
+      - name: Check MSRV
+        run: >
+          cargo check
+          ${{ inputs.workspace && '--workspace' || '' }}
+          --all-features

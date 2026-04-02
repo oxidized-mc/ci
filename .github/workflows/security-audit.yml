@@ -1,0 +1,44 @@
+name: Security Audit
+
+on:
+  workflow_call:
+    inputs:
+      ignore:
+        description: "Comma-separated list of RUSTSEC advisories to ignore"
+        type: string
+        default: ""
+      schedule-cron:
+        description: "Cron schedule (used in caller, not here)"
+        type: string
+        default: "0 8 * * 1"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    name: cargo-audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Run audit
+        shell: bash
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.ignore }}" ]; then
+            IFS=',' read -ra IGNORES <<< "${{ inputs.ignore }}"
+            for id in "${IGNORES[@]}"; do
+              ARGS="${ARGS} --ignore $(echo "${id}" | xargs)"
+            done
+          fi
+          cargo audit ${ARGS}

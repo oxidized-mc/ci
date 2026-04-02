@@ -1,0 +1,73 @@
+name: Commit Lint
+
+on:
+  workflow_call:
+    inputs:
+      types:
+        description: "Comma-separated list of allowed commit types"
+        type: string
+        default: "feat,fix,perf,refactor,test,docs,chore,ci"
+      scopes:
+        description: "Comma-separated list of allowed commit scopes"
+        type: string
+        default: "deps"
+      max-header-length:
+        description: "Maximum header length"
+        type: number
+        default: 100
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  commitlint:
+    name: Validate conventional commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Generate commitlint config
+        shell: bash
+        run: |
+          # Build YAML types array
+          TYPES_YAML=""
+          IFS=',' read -ra TYPES <<< "${{ inputs.types }}"
+          for t in "${TYPES[@]}"; do
+            TYPES_YAML="${TYPES_YAML}      - $(echo "$t" | xargs)"$'\n'
+          done
+
+          # Build YAML scopes array
+          SCOPES_YAML=""
+          IFS=',' read -ra SCOPES <<< "${{ inputs.scopes }}"
+          for s in "${SCOPES[@]}"; do
+            SCOPES_YAML="${SCOPES_YAML}      - $(echo "$s" | xargs)"$'\n'
+          done
+
+          cat > .commitlintrc.yml << COMMITEOF
+          rules:
+            type-enum:
+              - 2
+              - always
+              - $(echo "${{ inputs.types }}" | sed 's/,/\n      - /g' | sed 's/^/\n      - /')
+            type-empty: [2, never]
+            type-case: [2, always, lower-case]
+            scope-enum:
+              - 2
+              - always
+              - $(echo "${{ inputs.scopes }}" | sed 's/,/\n      - /g' | sed 's/^/\n      - /')
+            scope-case: [2, always, lower-case]
+            subject-empty: [2, never]
+            subject-case: [2, always, lower-case]
+            subject-full-stop: [2, never, "."]
+            header-max-length: [2, always, ${{ inputs.max-header-length }}]
+            body-max-line-length: [1, always, 100]
+            footer-max-line-length: [1, always, 100]
+          COMMITEOF
+
+      - name: Validate PR commits
+        uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: .commitlintrc.yml
