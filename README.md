@@ -18,6 +18,7 @@ Centralized, modular GitHub Actions workflows for every repository in the
 | Workflow | File | Description |
 |----------|------|-------------|
 | **Release Please** | `release-please.yml` | Automated release PRs and changelogs |
+| **Cargo Publish** | `cargo-publish.yml` | Publish crate to crates.io on release |
 | **Dev Release** | `dev-release.yml` | Nightly binary builds (5 targets) |
 | **Release Binaries** | `release-binaries.yml` | Stable release builds on tag |
 | **Docker** | `docker.yml` | Multi-arch Docker images to GHCR |
@@ -63,6 +64,32 @@ on:
 jobs:
   audit:
     uses: oxidized-mc/ci/.github/workflows/security-audit.yml@main
+```
+
+### Library crate release pipeline
+
+```yaml
+# .github/workflows/release-please.yml
+name: Release Please
+on:
+  push:
+    branches: [main]
+jobs:
+  release:
+    uses: oxidized-mc/ci/.github/workflows/release-please.yml@main
+```
+
+```yaml
+# .github/workflows/cargo-publish.yml
+name: Publish to crates.io
+on:
+  release:
+    types: [published]
+jobs:
+  publish:
+    uses: oxidized-mc/ci/.github/workflows/cargo-publish.yml@main
+    secrets:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 ```
 
 ### Workspace crate (server)
@@ -159,6 +186,16 @@ jobs:
 | Input | Type | Default | Description |
 |-------|------|---------|-------------|
 | `ignore` | string | `""` | Comma-separated RUSTSEC IDs to ignore |
+
+### `cargo-publish.yml`
+
+| Input | Type | Default | Description |
+|-------|------|---------|-------------|
+| `crate-name` | string | `""` | Crate name (logging only) |
+| `toolchain` | string | `stable` | Rust toolchain |
+| `dry-run` | boolean | `false` | Dry run without publishing |
+
+**Required secret:** `CARGO_REGISTRY_TOKEN` (crates.io API token)
 
 ### `dev-release.yml` / `release-binaries.yml`
 
