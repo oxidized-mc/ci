@@ -1,0 +1,21 @@
+name: "Strip local dev patches"
+description: >
+  Remove [patch."..."] sections from all Cargo.toml files so standalone CI
+  builds resolve dependencies from their declared git sources instead of
+  sibling-directory paths that only exist in the meta-repo checkout.
+
+runs:
+  using: "composite"
+  steps:
+    - shell: python3 {0}
+      run: |
+        import pathlib, glob
+        for f in glob.glob("**/Cargo.toml", recursive=True):
+            p = pathlib.Path(f)
+            lines = p.read_text().splitlines(True)
+            idx = next((i for i, l in enumerate(lines) if l.startswith("[patch.")), None)
+            if idx is not None:
+                while idx > 0 and lines[idx - 1].strip() == "":
+                    idx -= 1
+                p.write_text("".join(lines[:idx]).rstrip() + "\n")
+                print(f"Stripped patches from {f}")

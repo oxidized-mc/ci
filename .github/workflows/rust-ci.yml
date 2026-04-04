@@ -46,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: oxidized-mc/ci/.github/actions/strip-patches@main
 
       - name: Install Rust (MSRV)
         uses: dtolnay/rust-toolchain@master
@@ -84,6 +85,7 @@ jobs:
         os: ${{ fromJSON(inputs.test-platforms) }}
     steps:
       - uses: actions/checkout@v6
+      - uses: oxidized-mc/ci/.github/actions/strip-patches@main
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -117,6 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: oxidized-mc/ci/.github/actions/strip-patches@main
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check
@@ -126,6 +129,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: oxidized-mc/ci/.github/actions/strip-patches@main
 
       - uses: dtolnay/rust-toolchain@master
         with:

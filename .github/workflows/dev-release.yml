@@ -57,6 +57,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: oxidized-mc/ci/.github/actions/strip-patches@main
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
