@@ -1,5 +1,5 @@
-name: Feature Request
-description: Suggest a new feature or improvement
+name: Workflow Enhancement
+description: Suggest a new reusable workflow or improvement to existing ones
 labels: ["enhancement", "needs-triage"]
 body:
   - type: markdown
@@ -7,11 +7,23 @@ body:
       value: |
         Thanks for the suggestion!
 
+  - type: dropdown
+    id: type
+    attributes:
+      label: Enhancement type
+      options:
+        - New reusable workflow
+        - Improvement to existing workflow
+        - New CI/CD feature (caching, matrix, etc.)
+        - Other
+    validations:
+      required: true
+
   - type: textarea
     id: problem
     attributes:
       label: Problem / motivation
-      description: What problem does this solve?
+      description: What problem does this solve? Which repos benefit?
     validations:
       required: true
 

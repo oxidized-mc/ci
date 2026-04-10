@@ -1,18 +1,32 @@
-name: Bug Report
-description: Report an issue with this repository
+name: Workflow Bug
+description: Report a CI/CD workflow issue (failure, incorrect behavior, flaky test)
 labels: ["bug", "needs-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to report a bug!
+        Thanks for reporting a workflow issue!
         Please fill in as much detail as possible.
+
+  - type: input
+    id: workflow
+    attributes:
+      label: Affected workflow
+      placeholder: "e.g. rust-ci.yml, release-please.yml, cargo-publish.yml"
+    validations:
+      required: true
+
+  - type: input
+    id: run-url
+    attributes:
+      label: Failed run URL (if applicable)
+      placeholder: "https://github.com/oxidized-mc/.../actions/runs/..."
 
   - type: textarea
     id: description
     attributes:
       label: What happened?
-      description: A clear description of the bug.
+      description: A clear description of the workflow issue.
     validations:
       required: true
 
@@ -24,8 +38,7 @@ body:
       required: true
 
   - type: textarea
-    id: reproduce
+    id: logs
     attributes:
-      label: Steps to reproduce
-    validations:
-      required: true
+      label: Relevant log output
+      render: text
