@@ -62,7 +62,12 @@ jobs:
           BASE_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
           SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
           SHORT_SHA=$(echo "${SHA}" | cut -c1-7)
-          DEV_VERSION="${BASE_VERSION}-dev.${SHORT_SHA}"
+          # Use a UTC timestamp prefix for monotonic semver ordering.
+          # Commit hashes are hex [0-9a-f] and don't sort chronologically,
+          # so a 't'-prefixed timestamp (t > f) ensures newer publishes
+          # always have higher precedence than older ones.
+          TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
+          DEV_VERSION="${BASE_VERSION}-dev.t${TIMESTAMP}.${SHORT_SHA}"
           echo "base=${BASE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "dev=${DEV_VERSION}" >> "$GITHUB_OUTPUT"
           echo "Dev version: ${DEV_VERSION}"
