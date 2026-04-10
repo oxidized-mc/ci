@@ -81,7 +81,7 @@ jobs:
           PACKAGES="${{ inputs.packages }}"
 
           if [ -z "$PACKAGES" ]; then
-            cargo publish $DRY_RUN
+            cargo publish --allow-dirty $DRY_RUN
           else
             COUNT=0
             while IFS= read -r pkg; do
@@ -95,7 +95,7 @@ jobs:
               COUNT=$((COUNT + 1))
 
               echo "::group::Publishing $pkg"
-              cargo publish $DRY_RUN -p "$pkg"
+              cargo publish --allow-dirty $DRY_RUN -p "$pkg"
               echo "::endgroup::"
             done <<< "$PACKAGES"
           fi
