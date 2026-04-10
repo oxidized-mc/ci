@@ -1,0 +1,11 @@
+# ci — Code Owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# These owners are automatically requested for review when a PR touches
+# matching paths. Order matters — later rules override earlier ones.
+
+# Default: project owner reviews everything
+*                                   @dodoflix
+
+# CI/CD and tooling
+.github/                            @dodoflix
